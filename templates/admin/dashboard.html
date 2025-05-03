@@ -1,0 +1,425 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Адмін-панель - Головна{% endblock %}
+{% block dashboard_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1 class="h3 mb-3">Панель адміністратора</h1>
+    </div>
+</div>
+
+<!-- Status Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1">Учасники</h6>
+                        <h2 class="display-6 mb-0">{{ participant_count }}</h2>
+                    </div>
+                    <i class="bi bi-people-fill display-6"></i>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('admin_participants') }}" class="text-white">
+                        <i class="bi bi-arrow-right"></i> Керувати учасниками
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1">Кола забігу</h6>
+                        <h2 class="display-6 mb-0">{{ lap_count }}</h2>
+                    </div>
+                    <i class="bi bi-stopwatch-fill display-6"></i>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('admin_laps') }}" class="text-white">
+                        <i class="bi bi-arrow-right"></i> Керувати колами
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1">Сума донатів</h6>
+                        <h2 class="display-6 mb-0">{{ donation_sum|round(2) }} грн</h2>
+                    </div>
+                    <i class="bi bi-cash-coin display-6"></i>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('admin_donations') }}" class="text-dark">
+                        <i class="bi bi-arrow-right"></i> Керувати донатами
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Standings and Rankings -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-trophy me-2"></i>
+                    Рейтинг факультетів
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="standing-chart" id="standingsChart" style="height: 300px;"></div>
+            </div>
+            <div class="card-footer text-end">
+                <a href="{{ url_for('public_home') }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye me-1"></i> Переглянути повний рейтинг
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-people me-2"></i>
+                    Топ учасників за дистанцією
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Учасник</th>
+                                <th>Факультет</th>
+                                <th>Кола</th>
+                                <th>Бали</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topParticipants">
+                            <tr>
+                                <td colspan="5" class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Завантаження...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <a href="{{ url_for('public_rankings') }}" target="_blank" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-eye me-1"></i> Переглянути всіх учасників
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Logs -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-activity me-2"></i>
+                    Останні кола
+                </h5>
+                <a href="{{ url_for('admin_laps') }}" class="btn btn-sm btn-outline-primary">Всі записи</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Час</th>
+                                <th>Факультет</th>
+                                <th>Учасник</th>
+                                <th>Тип</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lap in latest_laps %}
+                            <tr>
+                                <td>{{ lap.timestamp }}</td>
+                                <td>
+                                    <span class="faculty-indicator" style="background-color: {{ faculties[lap.faculty] }}"></span>
+                                    {{ lap.faculty.split(' ')[0] }}
+                                </td>
+                                <td>
+                                    {% if lap.participant_number.startswith('faculty_') %}
+                                    <span class="badge bg-secondary">Факультет</span>
+                                    {% else %}
+                                    #{{ lap.participant_number }} {{ lap.first_name}} {{ lap.last_name }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ participant_types[lap.participant_type].name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-cash me-2"></i>
+                    Останні донати
+                </h5>
+                <a href="{{ url_for('admin_donations') }}" class="btn btn-sm btn-outline-primary">Всі донати</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Час</th>
+                                <th>Факультет</th>
+                                <th>Сума</th>
+                                <th>Коментар</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for donation in latest_donations %}
+                            <tr>
+                                <td>{{ donation.timestamp }}</td>
+                                <td>
+                                    <span class="faculty-indicator" style="background-color: {{ faculties[donation.faculty] }}"></span>
+                                    {{ donation.faculty.split(' ')[0] }}
+                                </td>
+                                <td>{{ donation.amount }} грн</td>
+                                <td>{{ donation.comment or "" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning-charge me-2"></i>
+                    Швидкі дії
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin_participants') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-person-plus me-2"></i>
+                                Додати учасника
+                            </a>
+                            <a href="{{ url_for('admin_laps') }}" class="btn btn-outline-success">
+                                <i class="bi bi-plus-circle me-2"></i>
+                                Додати коло
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin_donations') }}" class="btn btn-outline-warning">
+                                <i class="bi bi-coin me-2"></i>
+                                Додати донат
+                            </a>
+                            <button id="toggleRegistrationBtn" class="btn {% if status.registration_open %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                <i class="bi {% if status.registration_open %}bi-lock{% else %}bi-unlock{% endif %} me-2"></i>
+                                {% if status.registration_open %}Закрити{% else %}Відкрити{% endif %} реєстрацію
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid gap-2">
+                            {% if status.status == 'registration' %}
+                            <button id="startEventBtn" class="btn btn-outline-primary">
+                                <i class="bi bi-play-fill me-2"></i>
+                                Розпочати забіг
+                            </button>
+                            {% else %}
+                            <button disabled class="btn btn-outline-secondary">
+                                <i class="bi bi-check-circle me-2"></i>
+                                Забіг вже розпочато
+                            </button>
+                            {% endif %}
+                            <button id="resetDbBtn" class="btn btn-outline-danger">
+                                <i class="bi bi-trash me-2"></i>
+                                Скинути базу даних
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load top participants
+    fetch('/get_participant_ranking')
+        .then(response => response.json())
+        .then(data => {
+            const topParticipantsTable = document.getElementById('topParticipants');
+            topParticipantsTable.innerHTML = '';
+            
+            // Show top 5 participants
+            const top5 = data.slice(0, 5);
+            
+            if (top5.length === 0) {
+                topParticipantsTable.innerHTML = '<tr><td colspan="5" class="text-center">Немає даних про учасників</td></tr>';
+                return;
+            }
+            
+            top5.forEach(participant => {
+                const row = document.createElement('tr');
+                const name = `${participant.first_name} ${participant.last_name}`.trim() || 'Невідомий учасник';
+                
+                row.innerHTML = `
+                    <td>${participant.rank}</td>
+                    <td>
+                        #${participant.participant_number} ${name}
+                        <span class="badge bg-info text-white">${participant.participant_type}</span>
+                    </td>
+                    <td>
+                        <span class="faculty-indicator" style="background-color: ${participant.color}"></span>
+                        ${participant.faculty.split(' ')[0]}
+                    </td>
+                    <td>${participant.laps} км</td>
+                    <td><strong>+${participant.points}</strong></td>
+                `;
+                
+                topParticipantsTable.appendChild(row);
+            });
+        })
+        .catch(error => console.error('Error loading top participants:', error));
+    
+    // Create standings chart
+    fetch('/get_standings')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.createElement('canvas');
+            document.getElementById('standingsChart').appendChild(ctx);
+            
+            const labels = data.map(faculty => faculty.faculty.split(' ')[0]);
+            const points = data.map(faculty => faculty.total_points);
+            const colors = data.map(faculty => faculty.color);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Бали',
+                        data: points,
+                        backgroundColor: colors,
+                        borderColor: colors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error creating standings chart:', error));
+    
+    // Toggle registration button
+    const toggleRegistrationBtn = document.getElementById('toggleRegistrationBtn');
+    if (toggleRegistrationBtn) {
+        toggleRegistrationBtn.addEventListener('click', function() {
+            if (confirm('Ви впевнені, що хочете змінити статус реєстрації?')) {
+                fetch('/toggle_registration', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    }
+                })
+                .catch(error => console.error('Error toggling registration:', error));
+            }
+        });
+    }
+    
+    // Start event button
+    const startEventBtn = document.getElementById('startEventBtn');
+    if (startEventBtn) {
+        startEventBtn.addEventListener('click', function() {
+            if (confirm('Ви впевнені, що хочете розпочати забіг? Це закриє реєстрацію учасників.')) {
+                fetch('/start_event', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    }
+                })
+                .catch(error => console.error('Error starting event:', error));
+            }
+        });
+    }
+    
+    // Reset database button
+    const resetDbBtn = document.getElementById('resetDbBtn');
+    if (resetDbBtn) {
+        resetDbBtn.addEventListener('click', function() {
+            if (confirm('Ви впевнені, що хочете скинути базу даних? Всі дані будуть втрачені!')) {
+                if (confirm('Це ОСТАТОЧНО видалить ВСІ дані. Ви впевнені?')) {
+                    fetch('/reset_database', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('База даних успішно скинута');
+                            location.reload();
+                        } else {
+                            alert('Помилка при скиданні бази даних: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error resetting database:', error);
+                        alert('Помилка при скиданні бази даних');
+                    });
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

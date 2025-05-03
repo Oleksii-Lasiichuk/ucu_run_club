@@ -1,0 +1,312 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Адмін-панель - Налаштування{% endblock %}
+{% block settings_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0">Налаштування системи</h1>
+        <div>
+            <button class="btn btn-primary" id="saveSettingsBtn">
+                <i class="bi bi-save me-2"></i> Зберегти зміни
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Event Settings -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-gear-wide-connected me-2"></i>
+                    Налаштування події
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Статус події</label>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="eventStatusToggle" {% if event_status.status == 'running' %}checked{% endif %}>
+                            <label class="form-check-label" for="eventStatusToggle">
+                                {% if event_status.status == 'running' %}Забіг розпочато{% else %}Підготовка{% endif %}
+                            </label>
+                        </div>
+                        <span class="badge ms-2 {% if event_status.status == 'running' %}bg-success{% else %}bg-warning{% endif %}">
+                            {% if event_status.status == 'running' %}Активно{% else %}Очікування{% endif %}
+                        </span>
+                    </div>
+                    <div class="small text-muted">
+                        Перемикач статусу події впливає на відображення публічних сторінок. 
+                        Якщо забіг не розпочато, відвідувачі побачать сторінку підготовки.
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Реєстрація учасників</label>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="registrationToggle" {% if event_status.registration_open %}checked{% endif %}>
+                            <label class="form-check-label" for="registrationToggle">
+                                {% if event_status.registration_open %}Реєстрація відкрита{% else %}Реєстрація закрита{% endif %}
+                            </label>
+                        </div>
+                        <span class="badge ms-2 {% if event_status.registration_open %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if event_status.registration_open %}Відкрито{% else %}Закрито{% endif %}
+                        </span>
+                    </div>
+                    <div class="small text-muted">
+                        Керує можливістю додавання нових учасників через публічну форму реєстрації.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Management -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-database-gear me-2"></i>
+                    Управління базою даних
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h6 class="fw-bold">Резервне копіювання</h6>
+                    <p class="text-muted">Завантажте копію бази даних для безпеки або переносу на інший сервер.</p>
+                    <button class="btn btn-outline-primary" id="backupDbBtn">
+                        <i class="bi bi-download me-2"></i> Завантажити резервну копію
+                    </button>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-3">
+                    <h6 class="fw-bold text-danger">Небезпечні операції</h6>
+                    <p class="text-muted">Будьте обережні! Ці дії не можна скасувати.</p>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-danger" id="resetDbBtn">
+                            <i class="bi bi-trash me-2"></i> Скинути базу даних
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Information -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Інформація про систему
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-muted">Версія системи</h6>
+                                <p class="mb-0 h4">1.0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-muted">Дата</h6>
+                                <p class="mb-0 h4">3 May 2025</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h6 class="fw-bold mt-3">Статистика бази даних</h6>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td>Учасники</td>
+                            <td class="text-end">{{ participant_count }}</td>
+                        </tr>
+                        <tr>
+                            <td>Записи кіл</td>
+                            <td class="text-end">{{ lap_count }}</td>
+                        </tr>
+                        <tr>
+                            <td>Записи донатів</td>
+                            <td class="text-end">{{ donation_count }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Faculty Settings -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-buildings me-2"></i>
+                    Факультети
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Тут відображаються всі факультети, які беруть участь у забігу.</p>
+                
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Назва</th>
+                            <th>Колір</th>
+                            <th>Учасників</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for faculty, color in faculties.items() %}
+                        <tr>
+                            <td>{{ faculty }}</td>
+                            <td>
+                                <span class="faculty-indicator" style="background-color: {{ color }}"></span>
+                                <span class="small text-muted">{{ color }}</span>
+                            </td>
+                            <td>
+                                {% set count = faculty_participants.get(faculty, 0) %}
+                                {{ count }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Event status toggle
+    const eventStatusToggle = document.getElementById('eventStatusToggle');
+    eventStatusToggle.addEventListener('change', function() {
+        const newStatus = this.checked ? 'running' : 'registration';
+        
+        if (!this.checked) {
+            if (!confirm('Ви впевнені, що хочете змінити статус події на "Підготовка"? Це приховає результати забігу від відвідувачів.')) {
+                this.checked = true;
+                return;
+            }
+        } else {
+            if (!confirm('Змінити статус на "Забіг розпочато"? Це зробить результати видимими для всіх.')) {
+                this.checked = false;
+                return;
+            }
+        }
+        
+        fetch('/update_event_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Помилка при оновленні статусу: ' + data.message);
+                this.checked = !this.checked;
+            }
+        })
+        .catch(error => {
+            console.error('Error updating event status:', error);
+            alert('Помилка при оновленні статусу');
+            this.checked = !this.checked;
+        });
+    });
+    
+    // Registration toggle
+    const registrationToggle = document.getElementById('registrationToggle');
+    registrationToggle.addEventListener('change', function() {
+        const isOpen = this.checked;
+        
+        if (!isOpen) {
+            if (!confirm('Ви впевнені, що хочете закрити реєстрацію? Нові учасники не зможуть зареєструватися.')) {
+                this.checked = true;
+                return;
+            }
+        } else {
+            if (!confirm('Ви впевнені, що хочете відкрити реєстрацію?')) {
+                this.checked = false;
+                return;
+            }
+        }
+        
+        fetch('/toggle_registration', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Помилка при зміні статусу реєстрації: ' + data.message);
+                this.checked = !this.checked;
+            }
+        })
+        .catch(error => {
+            console.error('Error toggling registration:', error);
+            alert('Помилка при зміні статусу реєстрації');
+            this.checked = !this.checked;
+        });
+    });
+    
+    // Backup database button
+    const backupDbBtn = document.getElementById('backupDbBtn');
+    backupDbBtn.addEventListener('click', function() {
+        window.location.href = '/backup_database';
+    });
+    
+    // Reset database button
+    const resetDbBtn = document.getElementById('resetDbBtn');
+    resetDbBtn.addEventListener('click', function() {
+        if (confirm('УВАГА! Ця дія ОСТАТОЧНО видалить ВСІ дані забігу. Ця дія незворотна!')) {
+            if (confirm('Ви ВПЕВНЕНІ? Всі дані будуть втрачені!')) {
+                fetch('/reset_database', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('База даних успішно скинута');
+                        location.reload();
+                    } else {
+                        alert('Помилка при скиданні бази даних: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error resetting database:', error);
+                    alert('Помилка при скиданні бази даних');
+                });
+            }
+        }
+    });
+    
+    // Save settings button
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    saveSettingsBtn.addEventListener('click', function() {
+        alert('Зміни збережено');
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+<!-- filepath: /Users/oleksii/Documents/PROJECTS/counter_for_run/templates/pre_event.html -->
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Благодійний Забіг - Підготовка</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container-fluid py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-center">
+                <h1 class="display-4 mb-4">Благодійний Забіг</h1>
+                <div class="card shadow-lg">
+                    <div class="card-body p-5">
+                        <h2>Підготовка до забігу</h2>
+                        <p class="lead mb-4">Забіг ще не розпочався. Спочатку потрібно зареєструвати всіх учасників.</p>
+                        
+                        <div class="d-grid gap-3 col-md-6 mx-auto">
+                            <a href="/participants" class="btn btn-primary btn-lg">
+                                Реєстрація учасників
+                            </a>
+                            <button id="start-event-btn" class="btn btn-success btn-lg">
+                                Розпочати забіг
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('start-event-btn').addEventListener('click', function() {
+            if (confirm('Ви впевнені, що хочете розпочати забіг? Це закриє реєстрацію учасників.')) {
+                fetch('/start_event', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/';
+                    }
+                })
+                .catch(error => console.error('Error starting event:', error));
+            }
+        });
+    </script>
+</body>
+</html>

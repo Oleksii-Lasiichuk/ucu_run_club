@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Адмін-панель{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <!-- Admin-specific CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="admin-page">
+    <!-- Admin Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top navbar-admin">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">
+                <i class="bi bi-shield-lock me-2"></i>Адмін-панель
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="adminNavbar">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% block dashboard_active %}{% endblock %}" href="{{ url_for('admin_dashboard') }}">
+                            <i class="bi bi-speedometer2 me-1"></i> Панель керування
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% block participants_active %}{% endblock %}" href="{{ url_for('admin_participants') }}">
+                            <i class="bi bi-people me-1"></i> Учасники
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% block laps_active %}{% endblock %}" href="{{ url_for('admin_laps') }}">
+                            <i class="bi bi-arrow-repeat me-1"></i> Кола
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% block donations_active %}{% endblock %}" href="{{ url_for('admin_donations') }}">
+                            <i class="bi bi-cash-coin me-1"></i> Донати
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% block run_active %}{% endblock %}" href="{{ url_for('admin_run_management') }}">
+                            <i class="bi bi-gear me-1"></i> Керування забігом
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% block settings_active %}{% endblock %}" href="{{ url_for('admin_settings') }}">
+                            <i class="bi bi-sliders me-1"></i> Налаштування
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a href="{{ url_for('public_home') }}" class="btn btn-outline-light btn-sm me-2">
+                        <i class="bi bi-house me-1"></i> На головну
+                    </a>
+                    <a href="{{ url_for('admin_logout') }}" class="btn btn-danger btn-sm">
+                        <i class="bi bi-box-arrow-right me-1"></i> Вийти
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="admin-container">
+        <!-- Global Status Message -->
+        <div id="global-status" class="alert d-none"></div>
+        
+        <!-- Reset Donations Modal -->
+        <div class="modal fade" id="resetDonationsModal" tabindex="-1" aria-labelledby="resetDonationsModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="resetDonationsModalLabel">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Скидання донатів
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>🚨 УВАГА! Ця дія видалить ВСІ записи про донати з бази даних!</p>
+                        <p>Ви впевнені, що хочете продовжити?</p>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="confirmResetDonations">
+                            <label class="form-check-label text-danger" for="confirmResetDonations">
+                                Я розумію, що ця дія незворотня
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                        <button type="button" class="btn btn-danger" id="confirmResetDonationsBtn" disabled>Підтверджую</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Content Area -->
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Common Admin JS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Enable tooltips everywhere
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Global function to show status messages
+            window.showGlobalStatus = function(message, isError = false) {
+                const statusEl = document.getElementById('global-status');
+                statusEl.textContent = message;
+                statusEl.className = isError ? 'alert alert-danger' : 'alert alert-success';
+                statusEl.classList.remove('d-none');
+                
+                setTimeout(() => {
+                    statusEl.classList.add('d-none');
+                }, 3000);
+            };
+            
+            // Reset donations checkbox event
+            const resetDonationsCheckbox = document.getElementById('confirmResetDonations');
+            if (resetDonationsCheckbox) {
+                resetDonationsCheckbox.addEventListener('change', function() {
+                    document.getElementById('confirmResetDonationsBtn').disabled = !this.checked;
+                });
+            }
+            
+            // Reset donations confirmation button
+            const confirmResetDonationsBtn = document.getElementById('confirmResetDonationsBtn');
+            if (confirmResetDonationsBtn) {
+                confirmResetDonationsBtn.addEventListener('click', function() {
+                    fetch('/reset_donations', {
+                        method: 'POST',
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('resetDonationsModal'));
+                        modal.hide();
+                        
+                        if (data.success) {
+                            showGlobalStatus('Всі донати були успішно видалені!');
+                            // Refresh the page after a short delay
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            showGlobalStatus(data.message || 'Помилка при видаленні донатів', true);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error resetting donations:', error);
+                        showGlobalStatus('Помилка при видаленні донатів', true);
+                    });
+                });
+            }
+            
+            // Fix for mobile menu closing on item click
+            const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
+            const navbarCollapse = document.querySelector('.navbar-collapse');
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth < 992) {
+                        bootstrap.Collapse.getInstance(navbarCollapse)?.hide();
+                    }
+                });
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

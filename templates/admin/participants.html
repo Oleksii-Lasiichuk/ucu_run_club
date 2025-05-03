@@ -1,0 +1,587 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Адмін-панель - Учасники{% endblock %}
+{% block participants_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0">Управління учасниками</h1>
+        <div>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addParticipantModal">
+                <i class="bi bi-person-plus me-2"></i> Додати учасника
+            </button>
+            {% if event_status.registration_open %}
+            <button id="toggleRegistrationBtn" class="btn btn-danger ms-2">
+                <i class="bi bi-lock me-2"></i> Закрити реєстрацію
+            </button>
+            {% else %}
+            <button id="toggleRegistrationBtn" class="btn btn-outline-success ms-2">
+                <i class="bi bi-unlock me-2"></i> Відкрити реєстрацію
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if event_status.registration_open %}
+<div class="alert alert-success">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    Реєстрація учасників відкрита. Нові учасники можуть бути додані.
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    Реєстрація учасників закрита. Щоб додати нових учасників, відкрийте реєстрацію.
+</div>
+{% endif %}
+
+<!-- Participants Table -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Зареєстровані учасники</h5>
+        <span class="badge bg-light text-dark">Всього: {{ participants|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="participantsTable" class="table table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>№</th>
+                        <th>Номер</th>
+                        <th>Ім'я</th>
+                        <th>Прізвище</th>
+                        <th>Факультет</th>
+                        <th>Тип учасника</th>
+                        <th>Дата реєстрації</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in participants %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ p.number }}</td>
+                        <td>{{ p.first_name }}</td>
+                        <td>{{ p.last_name }}</td>
+                        <td>
+                            <span class="faculty-indicator" style="background-color: {{ faculties[p.faculty] }}"></span>
+                            {{ p.faculty }}
+                        </td>
+                        <td>{{ participant_types[p.participant_type].name }}</td>
+                        <td>{{ p.registration_time }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary edit-participant-btn" 
+                                    data-id="{{ p.id }}"
+                                    data-number="{{ p.number }}"
+                                    data-first-name="{{ p.first_name }}"
+                                    data-last-name="{{ p.last_name }}"
+                                    data-faculty="{{ p.faculty }}"
+                                    data-type="{{ p.participant_type }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-participant-btn" data-id="{{ p.id }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                <button class="btn btn-outline-success add-lap-btn" 
+                                    data-number="{{ p.number }}"
+                                    data-faculty="{{ p.faculty }}"
+                                    data-type="{{ p.participant_type }}">
+                                    <i class="bi bi-plus-circle"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Participant Statistics -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Статистика по факультетах</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="facultyChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Статистика по типах учасників</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="typeChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Participant Modal -->
+<div class="modal fade" id="addParticipantModal" tabindex="-1" aria-labelledby="addParticipantModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addParticipantModalLabel">Додати нового учасника</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="participantForm">
+                    <input type="hidden" id="participant-id">
+                    <div class="mb-3">
+                        <label for="participant-number" class="form-label">Номер учасника</label>
+                        <input type="text" class="form-control" id="participant-number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="participant-first-name" class="form-label">Ім'я</label>
+                        <input type="text" class="form-control" id="participant-first-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="participant-last-name" class="form-label">Прізвище</label>
+                        <input type="text" class="form-control" id="participant-last-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="participant-faculty" class="form-label">Факультет</label>
+                        <select class="form-select" id="participant-faculty" required>
+                            <option value="" selected disabled>Виберіть факультет</option>
+                            {% for faculty in faculties %}
+                            <option value="{{ faculty }}">{{ faculty }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="participant-type" class="form-label">Тип учасника</label>
+                        <select class="form-select" id="participant-type" required>
+                            {% for id, details in participant_types.items() %}
+                            <option value="{{ id }}">{{ details.name }} (+{{ details.points }} бали)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" id="saveParticipantBtn">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Lap Modal -->
+<div class="modal fade" id="addLapModal" tabindex="-1" aria-labelledby="addLapModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="addLapModalLabel">Додати коло учаснику</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addLapForm">
+                    <input type="hidden" id="lap-participant-number">
+                    <input type="hidden" id="lap-faculty">
+                    <input type="hidden" id="lap-type">
+                    
+                    <div class="alert alert-info mb-3" id="participantInfo">
+                        Інформація про учасника буде тут
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="lap-count" class="form-label">Кількість кіл</label>
+                        <input type="number" class="form-control" id="lap-count" min="1" value="1" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-success" id="addLapBtn">Додати</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmationModalLabel">Підтвердження дії</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="confirmationModalBody">
+                Ви впевнені, що хочете видалити цього учасника?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger" id="confirmActionBtn">Видалити</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap components
+    const participantModal = new bootstrap.Modal(document.getElementById('addParticipantModal'));
+    const addLapModal = new bootstrap.Modal(document.getElementById('addLapModal'));
+    const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+    
+    // Current action data
+    let currentAction = null;
+    let currentId = null;
+    
+    // Toggle registration button
+    const toggleRegistrationBtn = document.getElementById('toggleRegistrationBtn');
+    if (toggleRegistrationBtn) {
+        toggleRegistrationBtn.addEventListener('click', function() {
+            if (confirm('Ви впевнені, що хочете змінити статус реєстрації?')) {
+                fetch('/toggle_registration', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    }
+                })
+                .catch(error => console.error('Error toggling registration:', error));
+            }
+        });
+    }
+    
+    // Add participant button
+    const saveParticipantBtn = document.getElementById('saveParticipantBtn');
+    saveParticipantBtn.addEventListener('click', function() {
+        const participantId = document.getElementById('participant-id').value;
+        const number = document.getElementById('participant-number').value;
+        const firstName = document.getElementById('participant-first-name').value;
+        const lastName = document.getElementById('participant-last-name').value;
+        const faculty = document.getElementById('participant-faculty').value;
+        const type = document.getElementById('participant-type').value;
+        
+        if (!number || !firstName || !lastName || !faculty || !type) {
+            alert('Будь ласка, заповніть усі поля');
+            return;
+        }
+        
+        const formData = new FormData();
+        
+        if (participantId) {
+            // Update existing participant
+            formData.append('id', participantId);
+            formData.append('first_name', firstName);
+            formData.append('last_name', lastName);
+            formData.append('faculty', faculty);
+            formData.append('participant_type', type);
+            
+            fetch('/update_participant', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    participantModal.hide();
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating participant:', error);
+                alert('Помилка при оновленні учасника');
+            });
+        } else {
+            // Add new participant
+            formData.append('number', number);
+            formData.append('first_name', firstName);
+            formData.append('last_name', lastName);
+            formData.append('faculty', faculty);
+            formData.append('participant_type', type);
+            
+            fetch('/register_participant', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    participantModal.hide();
+                    location.reload();
+                } else {
+                    alert(data.message || 'Помилка при додаванні учасника');
+                }
+            })
+            .catch(error => {
+                console.error('Error adding participant:', error);
+                alert('Помилка при додаванні учасника');
+            });
+        }
+    });
+    
+    // Edit participant buttons
+    document.querySelectorAll('.edit-participant-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const number = this.getAttribute('data-number');
+            const firstName = this.getAttribute('data-first-name');
+            const lastName = this.getAttribute('data-last-name');
+            const faculty = this.getAttribute('data-faculty');
+            const type = this.getAttribute('data-type');
+            
+            // Set values in modal
+            document.getElementById('participant-id').value = id;
+            document.getElementById('participant-number').value = number;
+            document.getElementById('participant-first-name').value = firstName;
+            document.getElementById('participant-last-name').value = lastName;
+            document.getElementById('participant-faculty').value = faculty;
+            document.getElementById('participant-type').value = type;
+            
+            // Disable number field (can't change participant number)
+            document.getElementById('participant-number').disabled = true;
+            
+            // Update modal title
+            document.getElementById('addParticipantModalLabel').textContent = 'Редагувати учасника';
+            
+            // Show modal
+            participantModal.show();
+        });
+    });
+    
+    // Reset modal when closed
+    document.getElementById('addParticipantModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('participantForm').reset();
+        document.getElementById('participant-id').value = '';
+        document.getElementById('participant-number').disabled = false;
+        document.getElementById('addParticipantModalLabel').textContent = 'Додати нового учасника';
+    });
+    
+    // Delete participant buttons
+    document.querySelectorAll('.delete-participant-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            currentAction = 'delete-participant';
+            currentId = id;
+            
+            document.getElementById('confirmationModalLabel').textContent = 'Видалення учасника';
+            document.getElementById('confirmationModalBody').textContent = 'Ви впевнені, що хочете видалити цього учасника?';
+            document.getElementById('confirmActionBtn').textContent = 'Видалити';
+            
+            confirmationModal.show();
+        });
+    });
+    
+    // Add lap buttons
+    document.querySelectorAll('.add-lap-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const number = this.getAttribute('data-number');
+            const faculty = this.getAttribute('data-faculty');
+            const type = this.getAttribute('data-type');
+            
+            document.getElementById('lap-participant-number').value = number;
+            document.getElementById('lap-faculty').value = faculty;
+            document.getElementById('lap-type').value = type;
+            
+            // Update participant info display
+            let typeName = '';
+            {% for id, details in participant_types.items() %}
+            if (type === '{{ id }}') {
+                typeName = '{{ details.name }}';
+            }
+            {% endfor %}
+            
+            document.getElementById('participantInfo').innerHTML = `
+                <strong>Учасник:</strong> #${number} (${typeName})<br>
+                <strong>Факультет:</strong> ${faculty}
+            `;
+            
+            addLapModal.show();
+        });
+    });
+    
+    // Add lap button in modal
+    document.getElementById('addLapBtn').addEventListener('click', function() {
+        const number = document.getElementById('lap-participant-number').value;
+        const faculty = document.getElementById('lap-faculty').value;
+        const type = document.getElementById('lap-type').value;
+        const count = parseInt(document.getElementById('lap-count').value);
+        
+        if (count < 1) {
+            alert('Кількість кіл повинна бути більше 0');
+            return;
+        }
+        
+        // Add laps one by one
+        let addedLaps = 0;
+        let addLapPromises = [];
+        
+        for (let i = 0; i < count; i++) {
+            addLapPromises.push(
+                fetch('/add_lap', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        faculty: faculty,
+                        participantType: type,
+                        participantNumber: number
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addedLaps++;
+                    }
+                })
+            );
+        }
+        
+        Promise.all(addLapPromises)
+            .then(() => {
+                addLapModal.hide();
+                alert(`Додано ${addedLaps} кіл для учасника #${number}`);
+            })
+            .catch(error => {
+                console.error('Error adding laps:', error);
+                alert('Помилка при додаванні кіл');
+            });
+    });
+    
+    // Confirmation modal action button
+    document.getElementById('confirmActionBtn').addEventListener('click', function() {
+        if (currentAction === 'delete-participant') {
+            fetch('/delete_participant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: currentId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    confirmationModal.hide();
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting participant:', error);
+                alert('Помилка при видаленні учасника');
+            });
+        }
+    });
+    
+    // Create faculty chart
+    createFacultyChart();
+    createParticipantTypeChart();
+    
+    function createFacultyChart() {
+        const ctx = document.getElementById('facultyChart').getContext('2d');
+        
+        // Count participants by faculty
+        const faculties = {};
+        const colors = {};
+        
+        {% for faculty, color in faculties.items() %}
+        faculties['{{ faculty }}'] = 0;
+        colors['{{ faculty }}'] = '{{ color }}';
+        {% endfor %}
+        
+        {% for p in participants %}
+        if (faculties['{{ p.faculty }}'] !== undefined) {
+            faculties['{{ p.faculty }}']++;
+        }
+        {% endfor %}
+        
+        const data = {
+            labels: Object.keys(faculties).map(f => f.split(' ')[0]),
+            datasets: [{
+                label: 'Кількість учасників',
+                data: Object.values(faculties),
+                backgroundColor: Object.values(colors),
+                borderColor: Object.values(colors),
+                borderWidth: 1
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: data,
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    function createParticipantTypeChart() {
+        const ctx = document.getElementById('typeChart').getContext('2d');
+        
+        // Count participants by type
+        const types = {};
+        const colors = {
+            'student': '#4CAF50',
+            'employee': '#2196F3',
+            'teacher': '#FFC107',
+            'dean': '#F44336'
+        };
+        const typeNames = {
+            {% for id, details in participant_types.items() %}
+            '{{ id }}': '{{ details.name }}',
+            {% endfor %}
+        };
+        
+        {% for id in participant_types %}
+        types['{{ id }}'] = 0;
+        {% endfor %}
+        
+        {% for p in participants %}
+        if (types['{{ p.participant_type }}'] !== undefined) {
+            types['{{ p.participant_type }}']++;
+        }
+        {% endfor %}
+        
+        const data = {
+            labels: Object.keys(types).map(t => typeNames[t]),
+            datasets: [{
+                label: 'Кількість учасників',
+                data: Object.values(types),
+                backgroundColor: Object.keys(types).map(t => colors[t]),
+                borderColor: Object.keys(types).map(t => colors[t]),
+                borderWidth: 1
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'pie',
+            data: data,
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

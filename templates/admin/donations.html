@@ -1,0 +1,370 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Адмін-панель - Управління донатами{% endblock %}
+{% block donations_active %}active{% endblock %}
+
+{% block content %}
+<!-- Page header with proper spacing -->
+<div class="row mb-4">
+    <div class="col-md-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0">Управління донатами</h1>
+        <div>
+            <button class="btn btn-success btn-admin" data-bs-toggle="modal" data-bs-target="#addDonationModal" title="Додати новий донат">
+                <i class="bi bi-cash-coin me-2"></i> Додати донат
+            </button>
+            <button class="btn btn-danger btn-admin ms-2" data-bs-toggle="modal" data-bs-target="#resetDonationsModal" title="Скинути всі донати">
+                <i class="bi bi-trash me-2"></i> Скинути всі донати
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Main content -->
+<div class="row g-3 mb-4">
+    <!-- Donation Statistics -->
+    <div class="col-lg-5 col-md-12">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Статистика донатів</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <div class="card bg-light border-0">
+                        <div class="card-body text-center py-4">
+                            <h6 class="text-muted mb-2">Загальна сума донатів</h6>
+                            <h2 class="display-5 mb-0" id="total-donations">
+                                {% set total_amount = 0 %}
+                                {% for donation in donations %}
+                                    {% set total_amount = total_amount + donation.amount %}
+                                {% endfor %}
+                                {{ total_amount|round(2) }}
+                            </h2>
+                            <small class="text-muted">грн</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="donationsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Donation Form -->
+    <div class="col-lg-7 col-md-12">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Швидке додавання донату</h5>
+            </div>
+            <div class="card-body">
+                <form id="donation-form" action="/add_donation" method="post" class="admin-form">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="donation-faculty" class="form-label">Факультет</label>
+                            <select class="form-select" id="donation-faculty" required>
+                                <option value="" selected disabled>Виберіть факультет</option>
+                                {% for faculty in faculties %}
+                                <option value="{{ faculty }}">{{ faculty }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="donation-amount" class="form-label">Сума (грн)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="donation-amount" min="1" step="1" required>
+                                <span class="input-group-text">грн</span>
+                            </div>
+                            <div class="form-text">
+                                Нагадування: кожні 100 грн = 1 бал для факультету
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3 mt-3">
+                        <label for="donation-comment" class="form-label">Коментар (необов'язково)</label>
+                        <textarea class="form-control" id="donation-comment" rows="2" placeholder="Вкажіть деталі донату"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-admin">
+                            <i class="bi bi-cash-coin me-2"></i> Додати донат
+                        </button>
+                        <button type="button" id="subtract-donation" class="btn btn-outline-danger btn-admin">
+                            <i class="bi bi-dash-circle me-2"></i> Відняти донат
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Donations Table -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Історія донатів</h5>
+        <button id="refreshDonationsBtn" class="btn btn-sm btn-light btn-admin" title="Оновити дані">
+            <i class="bi bi-arrow-clockwise"></i> Оновити
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 table-admin">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" width="5%">ID</th>
+                            <th scope="col" width="20%">Дата і час</th>
+                            <th scope="col" width="30%">Факультет</th>
+                            <th scope="col" width="15%">Сума</th>
+                            <th scope="col" width="20%">Коментар</th>
+                            <th scope="col" width="10%" class="text-center">Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if donations|length == 0 %}
+                        <tr id="no-donations-message">
+                            <td colspan="6" class="text-center py-3">Немає записів про донати</td>
+                        </tr>
+                        {% else %}
+                        {% for donation in donations %}
+                        <tr class="table-row-animate">
+                            <td>{{ donation.id }}</td>
+                            <td>{{ donation.timestamp }}</td>
+                            <td>
+                                <span class="faculty-indicator" style="background-color: {{ faculties[donation.faculty] }}"></span>
+                                {{ donation.faculty }}
+                            </td>
+                            <td>{{ donation.amount|round(2) }} грн</td>
+                            <td>{{ donation.comment or '-' }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-danger delete-donation-btn btn-admin" data-id="{{ donation.id }}" title="Видалити донат">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<!-- Add Donation Modal -->
+<div class="modal fade" id="addDonationModal" tabindex="-1" aria-labelledby="addDonationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="addDonationModalLabel"><i class="bi bi-cash-coin me-2"></i>Додати новий донат</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="modalDonationForm" class="admin-form">
+                    <div class="mb-3">
+                        <label for="modal-donation-faculty" class="form-label">Факультет</label>
+                        <select class="form-select" id="modal-donation-faculty" required>
+                            <option value="" selected disabled>Виберіть факультет</option>
+                            {% for faculty in faculties %}
+                            <option value="{{ faculty }}">{{ faculty }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-donation-amount" class="form-label">Сума (грн)</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="modal-donation-amount" min="1" step="1" required>
+                            <span class="input-group-text">грн</span>
+                        </div>
+                        <div class="form-text">
+                            Нагадування: кожні 100 грн = 1 бал для факультету
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-donation-comment" class="form-label">Коментар (необов'язково)</label>
+                        <textarea class="form-control" id="modal-donation-comment" rows="2" placeholder="Вкажіть деталі донату"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-admin" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-success btn-admin" id="saveDonationBtn">Додати</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Donations Modal -->
+<div class="modal fade" id="resetDonationsModal" tabindex="-1" aria-labelledby="resetDonationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="resetDonationsModalLabel"><i class="bi bi-trash me-2"></i>Скинути всі донати</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Ви впевнені, що хочете скинути всі донати? Ця дія є незворотною.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-admin" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger btn-admin" id="resetDonationsBtn">Скинути</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmationModalLabel"><i class="bi bi-exclamation-triangle me-2"></i>Підтвердження</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="confirmationModalBody">
+                Ви впевнені, що хочете видалити цей донат?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-admin" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger btn-admin" id="confirmActionBtn">Видалити</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="status-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header" id="status-toast-header">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong class="me-auto" id="status-toast-title">Повідомлення</strong>
+            <small>Зараз</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="status-toast-body"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fix for donation form submission
+    document.getElementById('donation-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const faculty = document.getElementById('donation-faculty').value;
+        const amount = document.getElementById('donation-amount').value;
+        const comment = document.getElementById('donation-comment').value;
+        
+        if (!faculty) {
+            showGlobalStatus('Виберіть факультет', true);
+            return;
+        }
+        
+        if (!amount || amount <= 0) {
+            showGlobalStatus('Введіть коректну суму', true);
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('faculty', faculty);
+        formData.append('amount', amount);
+        formData.append('comment', comment);
+        
+        fetch('/add_donation', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showGlobalStatus('Донат успішно додано!');
+                document.getElementById('donation-form').reset();
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showGlobalStatus(data.message || 'Помилка при додаванні донату', true);
+            }
+        })
+        .catch(error => {
+            console.error('Error adding donation:', error);
+            showGlobalStatus('Помилка при додаванні донату', true);
+        });
+    });
+    
+    // Modal donation form handling
+    document.getElementById('saveDonationBtn').addEventListener('click', function() {
+        const faculty = document.getElementById('modal-donation-faculty').value;
+        const amount = document.getElementById('modal-donation-amount').value;
+        const comment = document.getElementById('modal-donation-comment').value;
+        
+        if (!faculty) {
+            showGlobalStatus('Виберіть факультет', true);
+            return;
+        }
+        
+        if (!amount || amount <= 0) {
+            showGlobalStatus('Введіть коректну суму', true);
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('faculty', faculty);
+        formData.append('amount', amount);
+        formData.append('comment', comment);
+        
+        fetch('/add_donation', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addDonationModal'));
+                modal.hide();
+                showGlobalStatus('Донат успішно додано!');
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showGlobalStatus(data.message || 'Помилка при додаванні донату', true);
+            }
+        })
+        .catch(error => {
+            console.error('Error adding donation:', error);
+            showGlobalStatus('Помилка при додаванні донату', true);
+        });
+    });
+
+    // Reset donations handling
+    document.getElementById('resetDonationsBtn').addEventListener('click', function() {
+        fetch('/reset_donations', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('resetDonationsModal'));
+                modal.hide();
+                showGlobalStatus('Всі донати успішно скинуто!');
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showGlobalStatus(data.message || 'Помилка при скиданні донатів', true);
+            }
+        })
+        .catch(error => {
+            console.error('Error resetting donations:', error);
+            showGlobalStatus('Помилка при скиданні донатів', true);
+        });
+    });
+});
+</script>
+{% endblock %}

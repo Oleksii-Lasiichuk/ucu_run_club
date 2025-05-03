@@ -1,0 +1,146 @@
+<!-- filepath: /Users/oleksii/Documents/PROJECTS/counter_for_run/templates/participants.html -->
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Благодійний Забіг - Реєстрація Учасників</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12 text-center mb-4">
+                <h1>Реєстрація Учасників Благодійного Забігу</h1>
+                <p class="lead">Додайте всіх учасників перед початком забігу</p>
+                <div class="d-flex justify-content-center gap-3 mb-3">
+                    <a href="/" class="btn btn-primary">Головна сторінка</a>
+                    {% if event_status.status == 'registration' %}
+                        <button id="toggle-registration-btn" class="btn {% if event_status.registration_open %}btn-danger{% else %}btn-success{% endif %}">
+                            {% if event_status.registration_open %}Закрити реєстрацію{% else %}Відкрити реєстрацію{% endif %}
+                        </button>
+                        <button id="start-event-btn" class="btn btn-warning">Почати забіг</button>
+                    {% endif %}
+                </div>
+                <div id="registration-status" class="alert {% if event_status.registration_open %}alert-success{% else %}alert-danger{% endif %} {% if event_status.status == 'running' %}d-none{% endif %}">
+                    Реєстрація {% if event_status.registration_open %}відкрита{% else %}закрита{% endif %}
+                </div>
+                {% if event_status.status == 'running' %}
+                <div class="alert alert-info">
+                    Забіг розпочато! Ви можете продовжити додавати учасників.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Registration Form -->
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h4 mb-0">Додати учасника</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="registration-form">
+                            <input type="hidden" id="participant-id">
+                            <div class="mb-3">
+                                <label for="participant-number" class="form-label">Номер учасника</label>
+                                <input type="text" class="form-control" id="participant-number" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="participant-first-name" class="form-label">Ім'я</label>
+                                <input type="text" class="form-control" id="participant-first-name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="participant-last-name" class="form-label">Прізвище</label>
+                                <input type="text" class="form-control" id="participant-last-name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="participant-faculty" class="form-label">Факультет</label>
+                                <select class="form-select" id="participant-faculty" required>
+                                    <option value="" selected disabled>Виберіть факультет</option>
+                                    {% for faculty in faculties %}
+                                    <option value="{{ faculty }}">{{ faculty }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="participant-type" class="form-label">Тип учасника</label>
+                                <select class="form-select" id="participant-type" required>
+                                    {% for id, details in participant_types.items() %}
+                                    <option value="{{ id }}">{{ details.name }} (+{{ details.points }} бали)</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" id="submit-btn">Зареєструвати</button>
+                                <button type="button" class="btn btn-secondary" id="reset-form-btn">Очистити</button>
+                                <button type="button" class="btn btn-danger d-none" id="cancel-edit-btn">Скасувати редагування</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participants List -->
+            <div class="col-lg-8 mb-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h2 class="h4 mb-0">Зареєстровані учасники</h2>
+                        <span class="badge bg-primary" id="participants-count">{{ participants|length }}</span>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if participants|length > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0" id="participants-table">
+                                <thead>
+                                    <tr>
+                                        <th>№</th>
+                                        <th>Номер</th>
+                                        <th>Ім'я</th>
+                                        <th>Прізвище</th>
+                                        <th>Факультет</th>
+                                        <th>Тип</th>
+                                        <th>Дії</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="participants-body">
+                                    {% for p in participants %}
+                                    <tr data-id="{{ p.id }}">
+                                        <td>{{ loop.index }}</td>
+                                        <td>{{ p.number }}</td>
+                                        <td>{{ p.first_name }}</td>
+                                        <td>{{ p.last_name }}</td>
+                                        <td>{{ p.faculty }}</td>
+                                        <td>{{ participant_types[p.participant_type].name }}</td>
+                                        <td>
+                                            <div class="d-flex gap-1">
+                                                <button class="btn btn-sm btn-secondary edit-btn" data-id="{{ p.id }}">
+                                                    Редагувати
+                                                </button>
+                                                <button class="btn btn-sm btn-danger delete-btn" data-id="{{ p.id }}">
+                                                    Видалити
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center p-4">
+                            <p>Ще немає зареєстрованих учасників</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/participants.js') }}"></script>
+</body>
+</html>

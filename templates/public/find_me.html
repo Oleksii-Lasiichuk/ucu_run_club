@@ -1,0 +1,89 @@
+{% extends "base_layout.html" %}
+
+{% block title %}Благодійний Забіг - Знайти себе{% endblock %}
+{% block find_me_active %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h1 class="h3 mb-0">Знайти себе в рейтингу</h1>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('find_participant') }}" method="get" class="mb-4">
+                    <div class="mb-3">
+                        <label for="number" class="form-label">Введіть ваш номер учасника:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg" id="number" name="number" 
+                                   placeholder="Номер учасника" value="{{ number or '' }}" required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search me-2"></i>Знайти
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                {% if number and not participant %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Учасника з номером <strong>{{ number }}</strong> не знайдено або він ще не пройшов жодного кола.
+                </div>
+                {% endif %}
+                
+                {% if participant %}
+                <div class="alert alert-success mb-4">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    Учасника знайдено!
+                </div>
+                
+                <div class="card mb-4 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="h5 mb-0">Інформація про учасника</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Номер:</strong> {{ participant.participant_number }}</p>
+                                <p><strong>Ім'я:</strong> {{ participant.first_name }} {{ participant.last_name }}</p>
+                                <p><strong>Тип учасника:</strong> {{ participant.participant_type }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p>
+                                    <strong>Факультет:</strong> 
+                                    <span class="faculty-indicator" style="background-color: {{ participant.color }}"></span>
+                                    {{ participant.faculty }}
+                                </p>
+                                <p><strong>Пройдено:</strong> {{ participant.laps }} км</p>
+                                <p><strong>Бали:</strong> +{{ participant.points }}</p>
+                                <p><strong>Поточне місце:</strong> <span class="badge bg-primary">{{ participant.rank }}</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="card mt-3 bg-light">
+                    <div class="card-body">
+                        <p class="mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Ваш номер можна дізнатися у організаторів заходу.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center mb-4">
+    <div class="col-md-8 text-center">
+        <a href="{{ url_for('public_rankings') }}" class="btn btn-lg btn-outline-primary">
+            <i class="bi bi-person-lines-fill me-2"></i> Переглянути рейтинг учасників
+        </a>
+        <a href="{{ url_for('public_home') }}" class="btn btn-lg btn-outline-success ms-2">
+            <i class="bi bi-trophy me-2"></i> Повернутися до рейтингу факультетів
+        </a>
+    </div>
+</div>
+{% endblock %}

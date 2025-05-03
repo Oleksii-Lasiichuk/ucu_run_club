@@ -1,0 +1,685 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Адмін-панель - Управління колами{% endblock %}
+{% block laps_active %}active{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12 d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0">Управління колами забігу</h1>
+        <div>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addLapModal">
+                <i class="bi bi-plus-circle me-2"></i> Додати коло
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Quick Add Lap Form -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Швидке додавання кола</h5>
+            </div>
+            <div class="card-body">
+                <form id="quickLapForm">
+                    <div class="mb-3">
+                        <label for="participant-number" class="form-label">Номер учасника</label>
+                        <input type="text" class="form-control" id="participant-number" required>
+                        <div class="form-text">Введіть номер учасника для автоматичного заповнення даних</div>
+                    </div>
+
+                    <div class="participant-info mb-3 d-none" id="participantInfo">
+                        <div class="alert alert-info">
+                            <div id="participantDetails">
+                                Інформація про учасника з'явиться тут після введення номера
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="lap-count" class="form-label">Кількість кіл</label>
+                        <input type="number" class="form-control" id="lap-count" min="1" value="1" required>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="addLapBtn" disabled>
+                            <i class="bi bi-plus-circle me-2"></i> Додати коло
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" id="subtractLapBtn" disabled>
+                            <i class="bi bi-dash-circle me-2"></i> Відняти коло
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lap Statistics -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Статистика кіл</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted mb-2">Всього кіл</h6>
+                                <h2 class="display-5 mb-0" id="totalLaps">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Завантаження...</span>
+                                    </div>
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted mb-2">Загальна дистанція</h6>
+                                <h2 class="display-5 mb-0" id="totalDistance">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Завантаження...</span>
+                                    </div>
+                                </h2>
+                                <small class="text-muted">км</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <canvas id="lapsChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Laps Table -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Останні додані кола</h5>
+        <div class="d-flex align-items-center">
+            <span id="refreshIndicator" class="spinner-border spinner-border-sm text-light me-2 d-none" role="status">
+                <span class="visually-hidden">Оновлення...</span>
+            </span>
+            <button id="refreshLapsBtn" class="btn btn-sm btn-light">
+                <i class="bi bi-arrow-clockwise"></i> Оновити
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Час</th>
+                        <th>Факультет</th>
+                        <th>Номер учасника</th>
+                        <th>Тип учасника</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="recentLapsTable">
+                    <tr>
+                        <td colspan="6" class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Завантаження...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer text-end">
+        <span id="lapsPaginationInfo">Відображено останні <strong id="lapsCount">0</strong> записів</span>
+    </div>
+</div>
+
+<!-- Add Lap Modal -->
+<div class="modal fade" id="addLapModal" tabindex="-1" aria-labelledby="addLapModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="addLapModalLabel">Додати коло для факультету</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="facultyLapForm">
+                    <div class="mb-3">
+                        <label for="modal-faculty" class="form-label">Факультет</label>
+                        <select class="form-select" id="modal-faculty" required>
+                            <option value="" selected disabled>Виберіть факультет</option>
+                            {% for faculty in faculties %}
+                            <option value="{{ faculty }}">{{ faculty }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-participant-type" class="form-label">Тип учасника</label>
+                        <select class="form-select" id="modal-participant-type" required>
+                            {% for id, details in participant_types.items() %}
+                            <option value="{{ id }}">{{ details.name }} (+{{ details.points }} бали)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-lap-count" class="form-label">Кількість кіл</label>
+                        <input type="number" class="form-control" id="modal-lap-count" min="1" value="1" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-success" id="addFacultyLapBtn">Додати</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmationModalLabel">Підтвердження видалення</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="confirmationModalBody">
+                Ви впевнені, що хочете видалити це коло?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger" id="confirmActionBtn">Видалити</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap components
+    const addLapModal = new bootstrap.Modal(document.getElementById('addLapModal'));
+    const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+    
+    // Current action data
+    let currentAction = null;
+    let currentId = null;
+    let currentParticipant = null;
+    
+    // Load initial data
+    loadLapsData();
+    loadLapsStatistics();
+    
+    // Function to show status messages
+    function showStatus(message, isError = false) {
+        // Create status element if it doesn't exist
+        let statusEl = document.getElementById('status-message');
+        if (!statusEl) {
+            statusEl = document.createElement('div');
+            statusEl.id = 'status-message';
+            statusEl.className = 'alert fixed-top mx-auto mt-3';
+            statusEl.style.width = '80%';
+            statusEl.style.maxWidth = '500px';
+            statusEl.style.zIndex = '9999';
+            statusEl.style.textAlign = 'center';
+            document.body.appendChild(statusEl);
+        }
+        
+        // Set status properties
+        statusEl.className = isError ? 'alert alert-danger fixed-top mx-auto mt-3' : 'alert alert-success fixed-top mx-auto mt-3';
+        statusEl.textContent = message;
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            statusEl.style.display = 'none';
+        }, 3000);
+        
+        // Show the element
+        statusEl.style.display = 'block';
+    }
+    
+    // Participant lookup
+    const participantNumberInput = document.getElementById('participant-number');
+    participantNumberInput.addEventListener('blur', function() {
+        const participantNumber = this.value.trim();
+        
+        if (participantNumber) {
+            lookupParticipant(participantNumber);
+        } else {
+            resetParticipantInfo();
+        }
+    });
+    
+    // Quick lap form submission
+    document.getElementById('quickLapForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!currentParticipant) {
+            showStatus('Будь ласка, введіть номер дійсного учасника', true);
+            return;
+        }
+        
+        const count = parseInt(document.getElementById('lap-count').value);
+        
+        if (count < 1) {
+            showStatus('Кількість кіл повинна бути більше 0', true);
+            return;
+        }
+        
+        addLapsForParticipant(
+            currentParticipant.faculty,
+            currentParticipant.participantType,
+            currentParticipant.number,
+            count
+        );
+    });
+    
+    // Subtract lap button
+    document.getElementById('subtractLapBtn').addEventListener('click', function() {
+        if (!currentParticipant) {
+            showStatus('Будь ласка, введіть номер дійсного учасника', true);
+            return;
+        }
+        
+        if (confirm(`Ви впевнені, що хочете відняти коло для учасника #${currentParticipant.number}?`)) {
+            subtractLapForParticipant(
+                currentParticipant.faculty,
+                currentParticipant.participantType,
+                currentParticipant.number
+            );
+        }
+    });
+    
+    // Add faculty lap button in modal
+    document.getElementById('addFacultyLapBtn').addEventListener('click', function() {
+        const faculty = document.getElementById('modal-faculty').value;
+        const participantType = document.getElementById('modal-participant-type').value;
+        const count = parseInt(document.getElementById('modal-lap-count').value);
+        
+        if (!faculty || !participantType) {
+            showStatus('Будь ласка, виберіть факультет та тип учасника', true);
+            return;
+        }
+        
+        if (count < 1) {
+            showStatus('Кількість кіл повинна бути більше 0', true);
+            return;
+        }
+        
+        // Add laps for faculty
+        let addedLaps = 0;
+        let addLapPromises = [];
+        
+        // Show status message immediately for better feedback
+        showStatus('Додавання кіл...', false);
+        
+        for (let i = 0; i < count; i++) {
+            addLapPromises.push(
+                fetch('/add_faculty_lap', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        faculty: faculty,
+                        participantType: participantType
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addedLaps++;
+                    }
+                })
+            );
+        }
+        
+        Promise.all(addLapPromises)
+            .then(() => {
+                addLapModal.hide();
+                showStatus(`Додано ${addedLaps} ${addedLaps === 1 ? 'коло' : 'кіл'} для факультету ${faculty}`, false);
+                
+                // Reload data
+                loadLapsData();
+                loadLapsStatistics();
+                
+                // Reset form
+                document.getElementById('facultyLapForm').reset();
+            })
+            .catch(error => {
+                console.error('Error adding faculty laps:', error);
+                showStatus('Помилка при додаванні кіл', true);
+            });
+    });
+    
+    // Delete lap button
+    document.addEventListener('click', function(e) {
+        const targetElement = e.target.closest('.delete-lap-btn');
+        if (targetElement) {
+            const lapId = targetElement.getAttribute('data-id');
+            currentAction = 'delete-lap';
+            currentId = lapId;
+            
+            confirmationModal.show();
+        }
+    });
+    
+    // Confirmation modal action
+    document.getElementById('confirmActionBtn').addEventListener('click', function() {
+        if (currentAction === 'delete-lap') {
+            // Delete lap logic
+            fetch(`/delete_lap/${currentId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    confirmationModal.hide();
+                    
+                    // Show status
+                    showStatus('Коло успішно видалено', false);
+                    
+                    // Reload data
+                    loadLapsData();
+                    loadLapsStatistics();
+                } else {
+                    showStatus('Помилка при видаленні кола: ' + (data.message || 'Невідома помилка'), true);
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting lap:', error);
+                showStatus('Помилка при видаленні кола', true);
+            });
+        }
+    });
+    
+    // Refresh laps button
+    document.getElementById('refreshLapsBtn').addEventListener('click', function() {
+        const refreshIndicator = document.getElementById('refreshIndicator');
+        refreshIndicator.classList.remove('d-none');
+        
+        loadLapsData()
+            .then(() => {
+                refreshIndicator.classList.add('d-none');
+            })
+            .catch(() => {
+                refreshIndicator.classList.add('d-none');
+            });
+    });
+    
+    // Functions
+    function lookupParticipant(participantNumber) {
+        fetch(`/lookup_participant_info?participantNumber=${participantNumber}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Enable buttons
+                    document.getElementById('addLapBtn').disabled = false;
+                    document.getElementById('subtractLapBtn').disabled = false;
+                    
+                    // Show participant info
+                    const participantInfo = document.getElementById('participantInfo');
+                    participantInfo.classList.remove('d-none');
+                    
+                    // Store participant data
+                    currentParticipant = {
+                        number: participantNumber,
+                        faculty: data.faculty,
+                        participantType: data.participantType
+                    };
+                    
+                    // Get type name
+                    let typeName = '';
+                    {% for id, details in participant_types.items() %}
+                    if (data.participantType === '{{ id }}') {
+                        typeName = '{{ details.name }}';
+                    }
+                    {% endfor %}
+                    
+                    // Get faculty color
+                    let facultyColor = '#000';
+                    {% for faculty, color in faculties.items() %}
+                    if (data.faculty === '{{ faculty }}') {
+                        facultyColor = '{{ color }}';
+                    }
+                    {% endfor %}
+                    
+                    // Update participant details
+                    document.getElementById('participantDetails').innerHTML = `
+                        <strong>Номер:</strong> ${participantNumber}<br>
+                        <strong>Тип:</strong> ${typeName}<br>
+                        <strong>Факультет:</strong> 
+                        <span class="faculty-indicator" style="background-color: ${facultyColor}"></span>
+                        ${data.faculty}
+                    `;
+                } else {
+                    resetParticipantInfo();
+                    showStatus('Учасника з таким номером не знайдено', true);
+                }
+            })
+            .catch(error => {
+                console.error('Error looking up participant:', error);
+                resetParticipantInfo();
+                showStatus('Помилка при пошуку учасника', true);
+            });
+    }
+    
+    function resetParticipantInfo() {
+        // Disable buttons
+        document.getElementById('addLapBtn').disabled = true;
+        document.getElementById('subtractLapBtn').disabled = true;
+        
+        // Hide participant info
+        document.getElementById('participantInfo').classList.add('d-none');
+        
+        // Reset stored participant data
+        currentParticipant = null;
+    }
+    
+    function addLapsForParticipant(faculty, participantType, participantNumber, count) {
+        let addedLaps = 0;
+        let addLapPromises = [];
+        
+        // Show status message immediately for better feedback
+        showStatus('Додавання кіл...', false);
+        
+        for (let i = 0; i < count; i++) {
+            addLapPromises.push(
+                fetch('/add_lap', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        faculty: faculty,
+                        participantType: participantType,
+                        participantNumber: participantNumber
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addedLaps++;
+                    }
+                })
+            );
+        }
+        
+        Promise.all(addLapPromises)
+            .then(() => {
+                // Show success message
+                showStatus(`Додано ${addedLaps} ${addedLaps === 1 ? 'коло' : 'кіл'} для учасника #${participantNumber}`, false);
+                
+                // Reload data
+                loadLapsData();
+                loadLapsStatistics();
+                
+                // Reset form
+                document.getElementById('lap-count').value = 1;
+            })
+            .catch(error => {
+                console.error('Error adding laps:', error);
+                showStatus('Помилка при додаванні кіл', true);
+            });
+    }
+    
+    function subtractLapForParticipant(faculty, participantType, participantNumber) {
+        // Show status message immediately for better feedback
+        showStatus('Віднімання кола...', false);
+        
+        fetch('/subtract_lap', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                faculty: faculty,
+                participantType: participantType,
+                participantNumber: participantNumber
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update status message
+                showStatus(`Віднято коло для учасника #${participantNumber}`, false);
+                
+                // Reload data
+                loadLapsData();
+                loadLapsStatistics();
+            } else {
+                showStatus(data.message || 'Немає кіл для віднімання', true);
+            }
+        })
+        .catch(error => {
+            console.error('Error subtracting lap:', error);
+            showStatus('Помилка при відніманні кола', true);
+        });
+    }
+    
+    function loadLapsData() {
+        return fetch('/get_recent_laps')
+            .then(response => response.json())
+            .then(data => {
+                const recentLapsTable = document.getElementById('recentLapsTable');
+                recentLapsTable.innerHTML = '';
+                
+                if (data.length === 0) {
+                    recentLapsTable.innerHTML = '<tr><td colspan="6" class="text-center">Немає даних про кола</td></tr>';
+                    document.getElementById('lapsCount').textContent = 0;
+                    return;
+                }
+                
+                data.forEach(lap => {
+                    const row = document.createElement('tr');
+                    
+                    // Format faculty - just use first word
+                    const facultyShort = lap.faculty.split(' ')[0];
+                    
+                    // Determine if it's a faculty lap or participant lap
+                    const isFacultyLap = lap.participant_number.startsWith('faculty_');
+                    
+                    row.innerHTML = `
+                        <td>${lap.id}</td>
+                        <td>${lap.timestamp || lap.time}</td>
+                        <td>
+                            <span class="faculty-indicator" style="background-color: ${lap.color}"></span>
+                            ${facultyShort}
+                        </td>
+                        <td>
+                            ${isFacultyLap ? 
+                                '<span class="badge bg-secondary">Факультет</span>' : 
+                                '#' + lap.participant_number
+                            }
+                        </td>
+                        <td>${lap.participant_name || lap.name || lap.participant_type_name}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-danger delete-lap-btn" data-id="${lap.id}" title="Видалити коло">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    recentLapsTable.appendChild(row);
+                });
+                
+                document.getElementById('lapsCount').textContent = data.length;
+            })
+            .catch(error => {
+                console.error('Error loading laps data:', error);
+            });
+    }
+    
+    function loadLapsStatistics() {
+        fetch('/get_laps_statistics')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('totalLaps').textContent = data.total_laps;
+                document.getElementById('totalDistance').textContent = data.total_laps;
+                
+                createLapsChart(data.laps_by_faculty);
+            })
+            .catch(error => {
+                console.error('Error loading laps statistics:', error);
+            });
+    }
+    
+    function createLapsChart(lapsByFaculty) {
+        const ctx = document.getElementById('lapsChart').getContext('2d');
+        
+        // Clear any existing chart
+        if (window.lapsChart) {
+            window.lapsChart.destroy();
+        }
+        
+        const labels = Object.keys(lapsByFaculty).map(faculty => faculty.split(' ')[0]);
+        const data = Object.values(lapsByFaculty);
+        const colors = [];
+        
+        // Get faculty colors
+        {% for faculty, color in faculties.items() %}
+        if (lapsByFaculty['{{ faculty }}'] !== undefined) {
+            colors.push('{{ color }}');
+        }
+        {% endfor %}
+        
+        window.lapsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Кола за факультетами',
+                    data: data,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

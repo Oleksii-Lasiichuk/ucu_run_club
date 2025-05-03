@@ -1,0 +1,94 @@
+{% extends "base_layout.html" %}
+
+{% block title %}Благодійний Забіг - Рейтинг факультетів{% endblock %}
+{% block home_active %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h1 class="h3 mb-0">Благодійний Забіг - Рейтинг факультетів</h1>
+            </div>
+            <div class="card-body">
+                {% if not event_started %}
+                <div class="alert alert-info mb-4">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Забіг ще не розпочався. Незабаром тут з'явиться інформація про перебіг забігу!
+                </div>
+                {% endif %}
+                
+                <!-- Faculties Ranking -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Місце</th>
+                                <th>Факультет</th>
+                                <th>Кола студ.</th>
+                                <th>Кола прац.</th>
+                                <th>Кола викл.</th>
+                                <th>Кола декан.</th>
+                                <th>Донати (грн)</th>
+                                <th>Всього балів</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for faculty in standings %}
+                            <tr>
+                                <td class="fw-bold">{{ loop.index }}</td>
+                                <td>
+                                    <span class="faculty-indicator" style="background-color: {{ faculty.color }}"></span>
+                                    {{ faculty.faculty }}
+                                </td>
+                                <td>{{ faculty.student_laps }}</td>
+                                <td>{{ faculty.employee_laps or 0 }}</td>
+                                <td>{{ faculty.teacher_laps }}</td>
+                                <td>{{ faculty.dean_laps }}</td>
+                                <td>{{ faculty.donations|round(2) }} грн</td>
+                                <td class="fw-bold">{{ faculty.total_points }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Points Explanation -->
+                <div class="card mt-4 bg-light">
+                    <div class="card-body">
+                        <h5 class="card-title">Система нарахування балів:</h5>
+                        <ul class="mb-0">
+                            <li>Студент: 1 бал за коло</li>
+                            <li>Працівник: 1 бал за коло</li>
+                            <li>Викладач: 2 бали за коло</li>
+                            <li>Декан/Адміністратор: 3 бали за коло</li>
+                            <li>Кожні 500 грн благодійних внесків: 1 бал</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Link to Personal Rankings -->
+<div class="row justify-content-center mb-4">
+    <div class="col-md-10 text-center">
+        <a href="{{ url_for('public_rankings') }}" class="btn btn-lg btn-outline-primary">
+            <i class="bi bi-person-lines-fill me-2"></i> Переглянути рейтинг учасників
+        </a>
+        <a href="{{ url_for('find_participant') }}" class="btn btn-lg btn-outline-success ms-2">
+            <i class="bi bi-search me-2"></i> Знайти себе в рейтингу
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto refresh the page every 30 seconds
+    setTimeout(function(){
+        window.location.reload();
+    }, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Благодійний Забіг - Лічильник</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12 text-center mb-4">
+                <h1>Благодійний Забіг - Лічильник Кіл</h1>
+                <p class="lead">1 коло = 1 км</p>
+                <p>Студент: 1 бал за коло | Працівник: 1 бал за коло | Викладач: 2 бали за коло | Декан/Адміністратор: 3 бали за коло</p>
+                <div class="d-flex justify-content-center gap-2 mb-3">
+                    <a href="/participants" class="btn btn-outline-primary">Редагувати учасників</a>
+                    <button id="reset-db-btn" class="btn btn-danger">Скинути базу даних</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Faculty Specific Buttons -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h2 class="h4 mb-0">Додати коло для факультету</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for faculty, color in faculties.items() %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card faculty-buttons" style="border-color: {{ color }}">
+                                    <div class="card-body">
+                                        <h5 class="faculty-name" style="color: {{ color }}">{{ faculty }}</h5>
+                                        <div class="mb-2">
+                                            <select class="form-select form-select-sm faculty-type-select" data-faculty="{{ faculty }}">
+                                                {% for id, details in participant_types.items() %}
+                                                <option value="{{ id }}">{{ details.name }} (+{{ details.points }} бали)</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn add-faculty-lap" style="background-color: {{ color }}; color: white;" data-faculty="{{ faculty }}">
+                                                + Додати коло
+                                            </button>
+                                            <button class="btn btn-outline-secondary subtract-faculty-lap" data-faculty="{{ faculty }}">
+                                                - Відняти коло
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Standings Section -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h4 mb-0">Рейтинг факультетів</h2>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0" id="standings-table">
+                                <thead>
+                                    <tr>
+                                        <th>Місце</th>
+                                        <th>Факультет</th>
+                                        <th>Кола студ.</th>
+                                        <th>Кола прац.</th>
+                                        <th>Кола викл.</th>
+                                        <th>Кола декан.</th>
+                                        <th>Донати (грн)</th>
+                                        <th>Всього балів</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="standings-body">
+                                    <!-- Standings will be populated via JavaScript -->
+                                    <tr>
+                                        <td colspan="8" class="text-center">Завантаження даних...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participant Ranking Section -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h2 class="h4 mb-0">Рейтинг учасників за пройденою дистанцією</h2>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0" id="participant-table">
+                                <thead>
+                                    <tr>
+                                        <th>Місце</th>
+                                        <th>Номер</th>
+                                        <th>Ім'я</th>
+                                        <th>Тип</th>
+                                        <th>Факультет</th>
+                                        <th>Пройдено</th>
+                                        <th>Бали</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="participant-body">
+                                    <!-- Participant ranking will be populated via JavaScript -->
+                                    <tr>
+                                        <td colspan="7" class="text-center">Завантаження даних...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Add Lap Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h2 class="h4 mb-0">Додати/відняти коло конкретному учаснику</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-12 mb-2">
+                                <label for="participant-number" class="form-label">Номер учасника</label>
+                                <input type="text" class="form-control" id="participant-number" placeholder="Введіть номер учасника">
+                                <div class="form-text">Після введення номера система автоматично визначить факультет та тип учасника</div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label for="participant-faculty" class="form-label">Факультет</label>
+                                <select class="form-select" id="participant-faculty" disabled>
+                                    <option value="" selected disabled>Виберіть факультет</option>
+                                    {% for faculty in faculties %}
+                                    <option value="{{ faculty }}">{{ faculty }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label for="participant-type" class="form-label">Тип учасника</label>
+                                <select class="form-select" id="participant-type" disabled>
+                                    {% for id, details in participant_types.items() %}
+                                    <option value="{{ id }}">{{ details.name }} (+{{ details.points }} бали)</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-success add-lap-any" id="add-lap-btn" disabled>
+                                + Додати коло
+                            </button>
+                            <button class="btn btn-outline-danger" id="subtract-lap-btn" disabled>
+                                - Відняти коло
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Donation Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-warning">
+                        <h2 class="h4 mb-0">Додати/відняти донат</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="donation-form">
+                            <div class="mb-3">
+                                <label for="donation-faculty" class="form-label">Факультет</label>
+                                <select class="form-select" id="donation-faculty" required>
+                                    <option value="" selected disabled>Виберіть факультет</option>
+                                    {% for faculty in faculties %}
+                                    <option value="{{ faculty }}">{{ faculty }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="donation-amount" class="form-label">Сума (грн)</label>
+                                <input type="number" class="form-control" id="donation-amount" min="1" step="1" required>
+                                <div class="form-text">100 грн = 1 бал для факультету</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="donation-comment" class="form-label">Коментар</label>
+                                <textarea class="form-control" id="donation-comment" rows="2"></textarea>
+                            </div>
+                            <div class="d-flex">
+                                <button type="submit" class="btn btn-primary me-2">Додати донат</button>
+                                <button type="button" id="subtract-donation" class="btn btn-outline-danger">Відняти донат</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">Підтвердження</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody">
+                    Ви впевнені, що хочете скинути базу даних? Всі дані будуть втрачені.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalBtn">Так, скинути</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
